@@ -1,0 +1,15 @@
+{
+  "app": "sample-app",
+  "domain": "sample.example.com",
+  "host": "198.51.100.25",
+  "user": "root",
+  "sshKey": "~/.ssh/id_ed25519",
+  "appPort": 3000,
+  "healthcheck": {
+    "path": "/health",
+    "timeoutSeconds": 30,
+    "intervalSeconds": 2
+  },
+  "ssl": true,
+  "keepPreviousRunning": true
+}
