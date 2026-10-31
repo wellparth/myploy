@@ -19,6 +19,7 @@ export interface MyPloyConfig {
   port?: number;
   sshKey?: string;
   password?: string;
+  service?: string; // Optional: specify which service in docker-compose.yml receives public traffic
   appPort: number;
   healthcheck?: Partial<HealthcheckConfig>;
   envFile?: string;

@@ -28,14 +28,16 @@ export function determineNextSlot(currentSlot?: Slot | null): Slot {
 }
 
 /**
- * Strips host port bindings from compose content to prevent port conflicts
- * between blue and green slots running simultaneously.
+ * Strips host port bindings from all compose services to prevent port conflicts
+ * between blue and green slots and existing host services, and connects the public
+ * ingress service to the myploy-net reverse proxy network.
  */
 export function sanitizeComposeForSlot(
   baseComposeYaml: string,
   appName: string,
-  slot: Slot
-): { sanitizedCompose: string; overrideCompose: string } {
+  slot: Slot,
+  targetService?: string
+): { sanitizedCompose: string; overrideCompose: string; primaryService: string } {
   let parsed: any;
   try {
     parsed = yaml.parse(baseComposeYaml) || {};
@@ -50,13 +52,21 @@ export function sanitizeComposeForSlot(
     throw new Error('docker-compose.yml contains no services.');
   }
 
-  const primaryService =
-    serviceNames.find((s) => ['web', 'app', 'api', 'server', appName].includes(s.toLowerCase())) ||
-    serviceNames[0];
+  // 1. Determine public ingress service (custom specified or intelligent auto-detection)
+  let primaryService = targetService;
+  if (!primaryService || !services[primaryService]) {
+    const candidates = ['frontend', 'client', 'web', 'app', 'gateway', 'api', 'server', appName.toLowerCase()];
+    primaryService =
+      serviceNames.find((s) => candidates.includes(s.toLowerCase())) || serviceNames[0];
+  }
 
-  // Remove host port bindings from primary service to prevent "port already allocated"
-  if (parsed.services[primaryService] && parsed.services[primaryService].ports) {
-    delete parsed.services[primaryService].ports;
+  // 2. Strip host port bindings from ALL services in the project to avoid port collisions
+  // with existing VPS services or between blue/green slots.
+  // Containers still communicate with each other over Docker's internal DNS using internal ports.
+  for (const sName of serviceNames) {
+    if (parsed.services[sName] && parsed.services[sName].ports) {
+      delete parsed.services[sName].ports;
+    }
   }
 
   const targetContainerName = `${appName}_${slot}`;
@@ -84,15 +94,17 @@ export function sanitizeComposeForSlot(
 
   return {
     sanitizedCompose: yaml.stringify(parsed),
-    overrideCompose: yaml.stringify(override)
+    overrideCompose: yaml.stringify(override),
+    primaryService
   };
 }
 
 export function generateComposeOverride(
   baseComposeYaml: string,
   appName: string,
-  slot: Slot
+  slot: Slot,
+  targetService?: string
 ): string {
-  return sanitizeComposeForSlot(baseComposeYaml, appName, slot).overrideCompose;
+  return sanitizeComposeForSlot(baseComposeYaml, appName, slot, targetService).overrideCompose;
 }
 

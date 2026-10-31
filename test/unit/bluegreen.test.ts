@@ -19,7 +19,48 @@ describe('Blue/Green Orchestration', () => {
     });
   });
 
-  describe('sanitizeComposeForSlot (Port Collision Fix)', () => {
+  describe('sanitizeComposeForSlot (Port Collision Fix & Multi-service)', () => {
+    it('removes host port mappings from all services in polyglot app (frontend + backend + db)', () => {
+      const polyglotYaml = `
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+`;
+      const { sanitizedCompose, overrideCompose, primaryService } = sanitizeComposeForSlot(
+        polyglotYaml,
+        'xyz',
+        'green',
+        'frontend'
+      );
+      const parsedBase = yaml.parse(sanitizedCompose);
+      const parsedOverride = yaml.parse(overrideCompose);
+
+      expect(primaryService).toBe('frontend');
+      // Ports stripped from ALL services so they don't fight for host ports
+      expect(parsedBase.services.frontend.ports).toBeUndefined();
+      expect(parsedBase.services.backend.ports).toBeUndefined();
+      expect(parsedBase.services.db.ports).toBeUndefined();
+
+      // Only frontend is exposed to myploy-net reverse proxy
+      expect(parsedOverride.services.frontend.container_name).toBe('xyz_green');
+      expect(parsedOverride.services.frontend.networks.myploy_net.aliases).toContain('xyz_green');
+    });
+
     it('removes host port mappings from base compose so blue and green do not collide', () => {
       const baseYaml = `
 version: '3.8'

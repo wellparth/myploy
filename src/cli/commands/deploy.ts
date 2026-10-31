@@ -62,9 +62,15 @@ export async function deployCommand(): Promise<void> {
     uploadSpinner.succeed(`Uploaded project files to remote slot [${candidateSlot}]`);
 
     // 3. Write sanitized compose (removing conflicting host ports) & override to isolate container name
-    const { sanitizedCompose, overrideCompose } = sanitizeComposeForSlot(baseComposeContent, config.app, candidateSlot);
+    const { sanitizedCompose, overrideCompose, primaryService } = sanitizeComposeForSlot(
+      baseComposeContent,
+      config.app,
+      candidateSlot,
+      config.service
+    );
     await ssh.writeFile(`${remoteSlotDir}/docker-compose.yml`, sanitizedCompose);
     await ssh.writeFile(`${remoteSlotDir}/docker-compose.override.yml`, overrideCompose);
+    logger.info(`Routing public traffic to ingress service: [${primaryService}]`);
 
     // 4. Upload envFile if specified
     if (config.envFile) {
