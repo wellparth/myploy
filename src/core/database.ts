@@ -58,6 +58,7 @@ export class DatabaseManager {
 
     const dataDir = `/var/lib/myploy/databases/${opts.type}_${safeName}`;
     await this.ssh.execOrThrow(`mkdir -p ${escapeShellArg(dataDir)}`);
+    const envFile = `${dataDir}/.env`;
 
     let dockerCmd = '';
     let port = 5432;
@@ -68,12 +69,16 @@ export class DatabaseManager {
         port = 5432;
         const img = `postgres:${opts.version || '16-alpine'}`;
         connUrl = `postgresql://${user}:${password}@${containerName}:${port}/${dbName}`;
+        await this.ssh.writeFile(
+          envFile,
+          `POSTGRES_DB=${dbName}\nPOSTGRES_USER=${user}\nPOSTGRES_PASSWORD=${password}\n`
+        );
+        await this.ssh.exec(`chmod 600 ${escapeShellArg(envFile)}`);
+
         dockerCmd = `docker run -d --name ${escapeShellArg(containerName)} \\
           --restart always \\
           --network myploy-net \\
-          -e POSTGRES_DB=${escapeShellArg(dbName)} \\
-          -e POSTGRES_USER=${escapeShellArg(user)} \\
-          -e POSTGRES_PASSWORD=${escapeShellArg(password)} \\
+          --env-file ${escapeShellArg(envFile)} \\
           -v ${escapeShellArg(dataDir)}:/var/lib/postgresql/data \\
           ${escapeShellArg(img)}`;
         break;
@@ -82,11 +87,16 @@ export class DatabaseManager {
         port = 3306;
         const img = `mysql:${opts.version || '8.0'}`;
         connUrl = `mysql://${user}:${password}@${containerName}:${port}/${dbName}`;
+        await this.ssh.writeFile(
+          envFile,
+          `MYSQL_DATABASE=${dbName}\nMYSQL_ROOT_PASSWORD=${password}\n`
+        );
+        await this.ssh.exec(`chmod 600 ${escapeShellArg(envFile)}`);
+
         dockerCmd = `docker run -d --name ${escapeShellArg(containerName)} \\
           --restart always \\
           --network myploy-net \\
-          -e MYSQL_DATABASE=${escapeShellArg(dbName)} \\
-          -e MYSQL_ROOT_PASSWORD=${escapeShellArg(password)} \\
+          --env-file ${escapeShellArg(envFile)} \\
           -v ${escapeShellArg(dataDir)}:/var/lib/mysql \\
           ${escapeShellArg(img)}`;
         break;
@@ -95,11 +105,16 @@ export class DatabaseManager {
         port = 3306;
         const img = `mariadb:${opts.version || '11'}`;
         connUrl = `mysql://${user}:${password}@${containerName}:${port}/${dbName}`;
+        await this.ssh.writeFile(
+          envFile,
+          `MARIADB_DATABASE=${dbName}\nMARIADB_ROOT_PASSWORD=${password}\n`
+        );
+        await this.ssh.exec(`chmod 600 ${escapeShellArg(envFile)}`);
+
         dockerCmd = `docker run -d --name ${escapeShellArg(containerName)} \\
           --restart always \\
           --network myploy-net \\
-          -e MARIADB_DATABASE=${escapeShellArg(dbName)} \\
-          -e MARIADB_ROOT_PASSWORD=${escapeShellArg(password)} \\
+          --env-file ${escapeShellArg(envFile)} \\
           -v ${escapeShellArg(dataDir)}:/var/lib/mysql \\
           ${escapeShellArg(img)}`;
         break;
@@ -108,23 +123,33 @@ export class DatabaseManager {
         port = 6379;
         const img = `redis:${opts.version || '7-alpine'}`;
         connUrl = `redis://:${password}@${containerName}:${port}`;
+        // Redis config file with password to avoid process table sniffing
+        const redisConf = `${dataDir}/redis.conf`;
+        await this.ssh.writeFile(redisConf, `requirepass ${password}\nappendonly yes\n`);
+        await this.ssh.exec(`chmod 600 ${escapeShellArg(redisConf)}`);
+
         dockerCmd = `docker run -d --name ${escapeShellArg(containerName)} \\
           --restart always \\
           --network myploy-net \\
           -v ${escapeShellArg(dataDir)}:/data \\
-          ${escapeShellArg(img)} redis-server --requirepass ${escapeShellArg(password)} --appendonly yes`;
+          -v ${escapeShellArg(redisConf)}:/usr/local/etc/redis/redis.conf \\
+          ${escapeShellArg(img)} redis-server /usr/local/etc/redis/redis.conf`;
         break;
       }
       case 'mongo': {
         port = 27017;
         const img = `mongo:${opts.version || '7.0'}`;
         connUrl = `mongodb://${user}:${password}@${containerName}:${port}/${dbName}?authSource=admin`;
+        await this.ssh.writeFile(
+          envFile,
+          `MONGO_INITDB_ROOT_USERNAME=${user}\nMONGO_INITDB_ROOT_PASSWORD=${password}\nMONGO_INITDB_DATABASE=${dbName}\n`
+        );
+        await this.ssh.exec(`chmod 600 ${escapeShellArg(envFile)}`);
+
         dockerCmd = `docker run -d --name ${escapeShellArg(containerName)} \\
           --restart always \\
           --network myploy-net \\
-          -e MONGO_INITDB_ROOT_USERNAME=${escapeShellArg(user)} \\
-          -e MONGO_INITDB_ROOT_PASSWORD=${escapeShellArg(password)} \\
-          -e MONGO_INITDB_DATABASE=${escapeShellArg(dbName)} \\
+          --env-file ${escapeShellArg(envFile)} \\
           -v ${escapeShellArg(dataDir)}:/data/db \\
           ${escapeShellArg(img)}`;
         break;

@@ -1,6 +1,10 @@
 import { SSHClient } from './ssh.js';
 import { logger } from '../utils/logger.js';
-import { renderProxyCompose } from '../templates/nginx.js';
+import {
+  renderProxyCompose,
+  renderCloudflareRealIpConfig,
+  renderOriginCloakingConfig
+} from '../templates/nginx.js';
 
 export async function checkPortUsage(
   ssh: SSHClient,
@@ -134,6 +138,16 @@ export async function bootstrapServer(ssh: SSHClient): Promise<void> {
     spinner.text = 'Deploying MyPloy reverse proxy (Nginx & Certbot)...';
     const proxyCompose = renderProxyCompose();
     await ssh.writeFile('/var/lib/myploy/docker-compose.proxy.yml', proxyCompose);
+
+    // Deploy Origin Cloaking & Cloudflare Real-IP configs
+    await ssh.writeFile(
+      '/var/lib/myploy/nginx/conf.d/00-cloudflare.conf',
+      renderCloudflareRealIpConfig()
+    );
+    await ssh.writeFile(
+      '/var/lib/myploy/nginx/conf.d/00-default.conf',
+      renderOriginCloakingConfig()
+    );
 
     // Start proxy containers
     await ssh.execOrThrow('docker compose -f /var/lib/myploy/docker-compose.proxy.yml up -d');
