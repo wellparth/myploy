@@ -15,6 +15,9 @@ describe('Nginx Template Renderer', () => {
     expect(config).toContain('server_name myapp.com');
     expect(config).toContain('location /.well-known/acme-challenge/');
     expect(config).toContain('proxy_pass http://myapp_upstream');
+    expect(config).toContain('server_tokens off;');
+    expect(config).toContain('add_header X-Frame-Options "SAMEORIGIN" always;');
+    expect(config).toContain('add_header X-Content-Type-Options "nosniff" always;');
   });
 
   it('renders HTTPS proxy configuration with SSL certs and 301 redirect', () => {
@@ -31,5 +34,7 @@ describe('Nginx Template Renderer', () => {
     expect(config).toContain('ssl_certificate /etc/letsencrypt/live/secure.myapp.com/fullchain.pem');
     expect(config).toContain('ssl_certificate_key /etc/letsencrypt/live/secure.myapp.com/privkey.pem');
     expect(config).toContain('proxy_pass http://myapp_upstream');
+    expect(config).toContain('Strict-Transport-Security');
+    expect(config).toContain('Referrer-Policy "strict-origin-when-cross-origin"');
   });
 });

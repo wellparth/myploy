@@ -58,6 +58,18 @@ export async function doctorCommand(): Promise<void> {
       logger.error('Docker Compose plugin NOT installed. Run "myploy setup" to install.');
     }
 
+    if (prereqs.port80.inUse) {
+      if (prereqs.port80.isMyPloy) {
+        logger.success('Edge Reverse Proxy (myploy-nginx) active on port 80/443');
+      } else {
+        logger.info(
+          `Pre-existing host web server [${prereqs.port80.processName || 'service'}] active on port 80/443 (will not be disturbed)`
+        );
+      }
+    } else {
+      logger.info('Ports 80/443 are free for MyPloy reverse proxy');
+    }
+
     const netCheck = await ssh.exec('docker network inspect myploy-net 2>/dev/null');
     if (netCheck.code === 0) {
       logger.success('Docker network "myploy-net" configured');
