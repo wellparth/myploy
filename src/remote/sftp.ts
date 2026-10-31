@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { SSHClient } from './ssh.js';
+import { escapeShellArg } from '../utils/security.js';
 
 export interface UploadOptions {
   ignore?: string[];
@@ -40,10 +41,10 @@ export async function uploadDirectoryAsTar(
   }
 
   // Ensure remote directory exists
-  await ssh.execOrThrow(`mkdir -p "${remoteTargetDir}"`);
+  await ssh.execOrThrow(`mkdir -p ${escapeShellArg(remoteTargetDir)}`);
 
   // Open remote command that untars from stdin
-  const remoteCmd = `tar -xzf - -C "${remoteTargetDir}"`;
+  const remoteCmd = `tar -xzf - -C ${escapeShellArg(remoteTargetDir)}`;
   
   return new Promise((resolve, reject) => {
     ssh.execStream(remoteCmd, (err, stream) => {

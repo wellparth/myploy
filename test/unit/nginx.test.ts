@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { renderHttpAppConfig, renderHttpsAppConfig } from '../../src/templates/nginx.js';
+import {
+  renderHttpAppConfig,
+  renderHttpsAppConfig,
+  renderCloudflareRealIpConfig,
+  renderOriginCloakingConfig
+} from '../../src/templates/nginx.js';
 
 describe('Nginx Template Renderer', () => {
   it('renders HTTP proxy configuration with upstream and certbot challenge path', () => {
@@ -36,5 +41,17 @@ describe('Nginx Template Renderer', () => {
     expect(config).toContain('proxy_pass http://myapp_upstream');
     expect(config).toContain('Strict-Transport-Security');
     expect(config).toContain('Referrer-Policy "strict-origin-when-cross-origin"');
+  });
+
+  it('renders Cloudflare Real-IP restoration configuration', () => {
+    const cf = renderCloudflareRealIpConfig();
+    expect(cf).toContain('real_ip_header CF-Connecting-IP;');
+    expect(cf).toContain('set_real_ip_from 173.245.48.0/20;');
+  });
+
+  it('renders Origin Cloaking default server to drop raw IP scans', () => {
+    const cloaking = renderOriginCloakingConfig();
+    expect(cloaking).toContain('listen 80 default_server;');
+    expect(cloaking).toContain('return 444;');
   });
 });

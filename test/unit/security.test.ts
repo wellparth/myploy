@@ -4,7 +4,8 @@ import {
   sanitizeDomain,
   sanitizeAppName,
   sanitizePath,
-  sanitizeInteger
+  sanitizeInteger,
+  sanitizeGitRef
 } from '../../src/utils/security.js';
 
 describe('Security Utilities', () => {
@@ -59,6 +60,24 @@ describe('Security Utilities', () => {
       expect(sanitizeInteger('3000', 80)).toBe(3000);
       expect(sanitizeInteger('invalid', 80)).toBe(80);
       expect(sanitizeInteger(-5, 80)).toBe(80);
+    });
+  });
+
+  describe('sanitizeGitRef (Git Option Injection Prevention)', () => {
+    it('accepts safe git branches and tags', () => {
+      expect(sanitizeGitRef('main')).toBe('main');
+      expect(sanitizeGitRef('feature/user-auth_v2')).toBe('feature/user-auth_v2');
+      expect(sanitizeGitRef('v1.0.0')).toBe('v1.0.0');
+    });
+
+    it('rejects option injection starting with dash', () => {
+      expect(() => sanitizeGitRef('--upload-pack=evil')).toThrow('cannot start with a dash');
+      expect(() => sanitizeGitRef('-b')).toThrow('cannot start with a dash');
+    });
+
+    it('rejects shell metacharacters in git refs', () => {
+      expect(() => sanitizeGitRef('main; rm -rf /')).toThrow('Invalid characters');
+      expect(() => sanitizeGitRef('main$(whoami)')).toThrow('Invalid characters');
     });
   });
 });

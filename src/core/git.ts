@@ -1,5 +1,5 @@
 import { SSHClient } from '../remote/ssh.js';
-import { escapeShellArg, sanitizeAppName, sanitizeDomain } from '../utils/security.js';
+import { escapeShellArg, sanitizeAppName, sanitizeDomain, sanitizeGitRef } from '../utils/security.js';
 import { logger } from '../utils/logger.js';
 import { determineNextSlot, sanitizeComposeForSlot, getDeploymentState, saveDeploymentState } from './bluegreen.js';
 import { waitForHealthy } from './healthcheck.js';
@@ -17,7 +17,7 @@ export interface GitDeployOptions {
 }
 
 export async function deployFromGit(ssh: SSHClient, options: GitDeployOptions): Promise<void> {
-  const branch = options.branch || 'main';
+  const branch = sanitizeGitRef(options.branch || 'main');
   const inferredAppName = options.app || options.repoUrl.split('/').pop()?.replace(/\.git$/, '') || 'app';
   const app = sanitizeAppName(inferredAppName);
   const domain = sanitizeDomain(options.domain || `${app}.localhost`);
@@ -39,7 +39,7 @@ export async function deployFromGit(ssh: SSHClient, options: GitDeployOptions): 
 
   // 2. Clone or pull repo on remote VPS
   const gitSpinner = logger.step(`Syncing git repository on remote VPS...`);
-  const isGitRepo = (await ssh.exec(`test -d "${repoDir}/.git" && echo 1 || echo 0`)).stdout.trim() === '1';
+  const isGitRepo = (await ssh.exec(`test -d ${escapeShellArg(repoDir + '/.git')} && echo 1 || echo 0`)).stdout.trim() === '1';
 
   if (!isGitRepo) {
     await ssh.execOrThrow(`git clone --depth 1 -b ${escapeShellArg(branch)} ${escapeShellArg(options.repoUrl)} ${escapeShellArg(repoDir)}`);
@@ -52,7 +52,7 @@ export async function deployFromGit(ssh: SSHClient, options: GitDeployOptions): 
   await ssh.execOrThrow(`rsync -a --delete --exclude '.git' ${escapeShellArg(repoDir + '/')} ${escapeShellArg(slotDir + '/')}`);
 
   // 4. Handle docker-compose.yml or Dockerfile
-  const hasCompose = (await ssh.exec(`test -f "${slotDir}/docker-compose.yml" && echo 1 || echo 0`)).stdout.trim() === '1';
+  const hasCompose = (await ssh.exec(`test -f ${escapeShellArg(slotDir + '/docker-compose.yml')} && echo 1 || echo 0`)).stdout.trim() === '1';
   let composeContent = '';
 
   if (hasCompose) {

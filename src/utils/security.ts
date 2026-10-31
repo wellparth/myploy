@@ -35,6 +35,20 @@ export function sanitizePath(uriPath: string): string {
   return trimmed.replace(/[^\w\d_.\-/?=&%+]/g, '');
 }
 
+export function sanitizeGitRef(ref: string): string {
+  const trimmed = ref.trim();
+  // Disallow options starting with dash (prevent git argument injection)
+  if (trimmed.startsWith('-')) {
+    throw new Error(`Security validation failed: Git ref cannot start with a dash ("${ref}").`);
+  }
+  // Enforce valid git branch/tag character set
+  const refRegex = /^[a-zA-Z0-9_.\-\/]+$/;
+  if (!refRegex.test(trimmed)) {
+    throw new Error(`Security validation failed: Invalid characters in git ref "${ref}".`);
+  }
+  return trimmed;
+}
+
 export function sanitizeInteger(val: string | number, defaultVal = 0): number {
   const parsed = typeof val === 'number' ? val : parseInt(String(val), 10);
   if (isNaN(parsed) || parsed < 0) {

@@ -2,6 +2,7 @@ import { Client, ConnectConfig } from 'ssh2';
 import fs from 'node:fs';
 import { MyPloyConfig } from '../types/config.js';
 import { expandTilde } from '../core/config.js';
+import { escapeShellArg } from '../utils/security.js';
 
 export interface ExecResult {
   stdout: string;
@@ -171,7 +172,7 @@ export class SSHClient {
   }
 
   async fileExists(remotePath: string): Promise<boolean> {
-    const res = await this.exec(`test -e "${remotePath}" && echo 1 || echo 0`);
+    const res = await this.exec(`test -e ${escapeShellArg(remotePath)} && echo 1 || echo 0`);
     return res.stdout.trim() === '1';
   }
 

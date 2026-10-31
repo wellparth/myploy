@@ -65,8 +65,14 @@ export function startDashboard(config: MyPloyConfig, port = 4000): http.Server {
       try {
         await ssh.connect();
         const dbs = await dbManager.list();
+        // Mask passwords in API response to prevent secret leakage
+        const safeDbs = dbs.map((d) => ({
+          ...d,
+          password: d.password ? '••••••••' : undefined,
+          connectionUrl: d.connectionUrl.replace(/:([^:@]+)@/, ':••••••••@')
+        }));
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(dbs));
+        res.end(JSON.stringify(safeDbs));
       } catch (err: any) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
@@ -267,9 +273,10 @@ export function startDashboard(config: MyPloyConfig, port = 4000): http.Server {
 </html>`);
   });
 
-  server.listen(port, () => {
+  // Explicitly bind to loopback (127.0.0.1) to prevent unintended public exposure
+  server.listen(port, '127.0.0.1', () => {
     logger.header('MyPloy Dashboard Online');
-    console.log(`  🌐 Local Web UI:    http://localhost:${port}`);
+    console.log(`  🌐 Local Web UI:    http://127.0.0.1:${port}`);
     console.log(`  📡 Target Host:     ${config.user}@${config.host}`);
     console.log(`  📊 Real-time stats & Dokploy-grade management enabled\n`);
   });
