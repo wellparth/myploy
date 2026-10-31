@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { determineNextSlot, generateComposeOverride } from '../../src/core/bluegreen.js';
+import {
+  determineNextSlot,
+  generateComposeOverride,
+  sanitizeComposeForSlot
+} from '../../src/core/bluegreen.js';
 import yaml from 'yaml';
 
 describe('Blue/Green Orchestration', () => {
@@ -12,6 +16,30 @@ describe('Blue/Green Orchestration', () => {
     it('toggles between blue and green', () => {
       expect(determineNextSlot('blue')).toBe('green');
       expect(determineNextSlot('green')).toBe('blue');
+    });
+  });
+
+  describe('sanitizeComposeForSlot (Port Collision Fix)', () => {
+    it('removes host port mappings from base compose so blue and green do not collide', () => {
+      const baseYaml = `
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+      - "80:80"
+`;
+      const { sanitizedCompose, overrideCompose } = sanitizeComposeForSlot(baseYaml, 'myapp', 'green');
+      const parsedBase = yaml.parse(sanitizedCompose);
+      const parsedOverride = yaml.parse(overrideCompose);
+
+      // Port mapping stripped from base compose
+      expect(parsedBase.services.web.ports).toBeUndefined();
+
+      // Attached to myploy-net in override
+      expect(parsedOverride.services.web.container_name).toBe('myapp_green');
+      expect(parsedOverride.services.web.networks.myploy_net.aliases).toContain('myapp_green');
     });
   });
 

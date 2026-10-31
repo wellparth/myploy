@@ -15,7 +15,7 @@ describe('Config Loader & Normalizer', () => {
       host: ' 1.2.3.4 '
     });
 
-    expect(config.app).toBe('my-super-app-');
+    expect(config.app).toBe('my-super-app');
     expect(config.domain).toBe('app.example.com');
     expect(config.host).toBe('1.2.3.4');
     expect(config.user).toBe('root');

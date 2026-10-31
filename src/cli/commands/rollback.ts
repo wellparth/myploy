@@ -5,6 +5,7 @@ import { applyNginxRouting, hasExistingCertificate } from '../../core/ssl.js';
 import { waitForHealthy } from '../../core/healthcheck.js';
 import { logger } from '../../utils/logger.js';
 import { DeploymentState } from '../../types/config.js';
+import { escapeShellArg } from '../../utils/security.js';
 
 export async function rollbackCommand(): Promise<void> {
   logger.header('MyPloy Instant Rollback');
@@ -36,10 +37,10 @@ export async function rollbackCommand(): Promise<void> {
     const targetDir = `/var/lib/myploy/apps/${config.app}/slots/${targetSlot}`;
 
     // Verify container is running, or start it
-    const statusRes = await ssh.exec(`docker inspect -f '{{.State.Status}}' ${containerName} 2>/dev/null`);
+    const statusRes = await ssh.exec(`docker inspect -f '{{.State.Status}}' ${escapeShellArg(containerName)} 2>/dev/null`);
     if (statusRes.stdout.trim() !== 'running') {
       const startSpinner = logger.step(`Starting standby container [${containerName}]...`);
-      await ssh.execOrThrow(`cd "${targetDir}" && docker compose -p "${config.app}_${targetSlot}" up -d`);
+      await ssh.execOrThrow(`cd ${escapeShellArg(targetDir)} && docker compose -p ${escapeShellArg(`${config.app}_${targetSlot}`)} up -d`);
       startSpinner.succeed(`Container [${containerName}] is running.`);
     }
 

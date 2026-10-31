@@ -128,7 +128,7 @@ services:
     volumes:
       - /var/lib/myploy/certbot/www:/var/www/certbot:rw
       - /var/lib/myploy/certbot/conf:/etc/letsencrypt:rw
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet && docker exec myploy-nginx nginx -s reload || true; sleep 12h & wait; done;'"
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait; done;'"
     networks:
       - myploy-net
 

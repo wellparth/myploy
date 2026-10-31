@@ -7,12 +7,13 @@ import {
   getDeploymentState,
   saveDeploymentState,
   determineNextSlot,
-  generateComposeOverride
+  sanitizeComposeForSlot
 } from '../../core/bluegreen.js';
 import { waitForHealthy } from '../../core/healthcheck.js';
 import { provisionSslCertificate, applyNginxRouting } from '../../core/ssl.js';
 import { logger } from '../../utils/logger.js';
 import { Slot, DeploymentState } from '../../types/config.js';
+import { escapeShellArg } from '../../utils/security.js';
 
 export async function deployCommand(): Promise<void> {
   logger.header('MyPloy Zero-Downtime Deploy');
@@ -60,9 +61,10 @@ export async function deployCommand(): Promise<void> {
     await uploadDirectoryAsTar(ssh, process.cwd(), remoteSlotDir);
     uploadSpinner.succeed(`Uploaded project files to remote slot [${candidateSlot}]`);
 
-    // 3. Write compose override to isolate container name and bind to myploy-net
-    const overrideYaml = generateComposeOverride(baseComposeContent, config.app, candidateSlot);
-    await ssh.writeFile(`${remoteSlotDir}/docker-compose.override.yml`, overrideYaml);
+    // 3. Write sanitized compose (removing conflicting host ports) & override to isolate container name
+    const { sanitizedCompose, overrideCompose } = sanitizeComposeForSlot(baseComposeContent, config.app, candidateSlot);
+    await ssh.writeFile(`${remoteSlotDir}/docker-compose.yml`, sanitizedCompose);
+    await ssh.writeFile(`${remoteSlotDir}/docker-compose.override.yml`, overrideCompose);
 
     // 4. Upload envFile if specified
     if (config.envFile) {
@@ -77,14 +79,7 @@ export async function deployCommand(): Promise<void> {
     const buildSpinner = logger.step(`Building & starting container in slot [${candidateSlot}]...`);
     const projectName = `${config.app}_${candidateSlot}`;
     await ssh.execOrThrow(
-      `docker compose -p "${projectName}" -f docker-compose.yml -f docker-compose.override.yml up -d --build`,
-      {
-        // run in slot dir
-      }
-    );
-    // Actually run with cwd in remoteSlotDir
-    await ssh.execOrThrow(
-      `cd "${remoteSlotDir}" && docker compose -p "${projectName}" up -d --build`
+      `cd ${escapeShellArg(remoteSlotDir)} && docker compose -p ${escapeShellArg(projectName)} up -d --build`
     );
     buildSpinner.succeed(`Candidate container [${projectName}] started.`);
 
@@ -107,7 +102,7 @@ export async function deployCommand(): Promise<void> {
     if (!isHealthy) {
       logger.error(`Deployment aborted: Candidate slot [${candidateSlot}] failed healthcheck.`);
       logger.step('Tearing down failed candidate container...');
-      await ssh.exec(`cd "${remoteSlotDir}" && docker compose -p "${projectName}" down`);
+      await ssh.exec(`cd ${escapeShellArg(remoteSlotDir)} && docker compose -p ${escapeShellArg(projectName)} down`);
       logger.warn(`Active traffic remains safely on slot [${activeSlot || 'none'}] with zero downtime.`);
       process.exit(1);
     }

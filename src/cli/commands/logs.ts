@@ -3,6 +3,7 @@ import { SSHClient } from '../../remote/ssh.js';
 import { getDeploymentState } from '../../core/bluegreen.js';
 import { logger } from '../../utils/logger.js';
 import { Slot } from '../../types/config.js';
+import { escapeShellArg, sanitizeInteger } from '../../utils/security.js';
 
 export interface LogsOptions {
   slot?: string;
@@ -27,12 +28,12 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
     }
 
     const containerName = `${config.app}_${targetSlot}`;
-    const tailCount = options.tail || '100';
+    const tailCount = sanitizeInteger(options.tail || '100', 100);
     const followFlag = options.follow ? '-f' : '';
 
     logger.info(`Streaming logs for container [${containerName}]...`);
 
-    await ssh.exec(`docker logs ${followFlag} --tail ${tailCount} ${containerName}`, {
+    await ssh.exec(`docker logs ${followFlag} --tail ${tailCount} ${escapeShellArg(containerName)}`, {
       streamOutput: true
     });
   } finally {

@@ -4,6 +4,8 @@ import os from 'node:os';
 import yaml from 'yaml';
 import { MyPloyConfig } from '../types/config.js';
 
+import { sanitizeAppName, sanitizeDomain, sanitizePath, sanitizeInteger } from '../utils/security.js';
+
 const CONFIG_FILENAMES = [
   'myploy.json',
   '.myploy.json',
@@ -62,26 +64,29 @@ export function normalizeConfig(raw: Partial<MyPloyConfig>): MyPloyConfig {
     throw new Error('Configuration error: "host" is required (VPS IP or hostname)');
   }
 
+  const app = sanitizeAppName(raw.app);
+  const domain = sanitizeDomain(raw.domain);
+
   const defaultKeyPath = fs.existsSync(expandTilde('~/.ssh/id_ed25519'))
     ? '~/.ssh/id_ed25519'
     : '~/.ssh/id_rsa';
 
   const healthcheck = {
-    path: raw.healthcheck?.path || '/',
-    port: raw.healthcheck?.port || raw.appPort || 3000,
-    timeoutSeconds: raw.healthcheck?.timeoutSeconds ?? 30,
-    intervalSeconds: raw.healthcheck?.intervalSeconds ?? 2
+    path: sanitizePath(raw.healthcheck?.path || '/'),
+    port: sanitizeInteger(raw.healthcheck?.port || raw.appPort || 3000, 3000),
+    timeoutSeconds: sanitizeInteger(raw.healthcheck?.timeoutSeconds ?? 30, 30),
+    intervalSeconds: sanitizeInteger(raw.healthcheck?.intervalSeconds ?? 2, 2)
   };
 
   return {
-    app: raw.app.toLowerCase().replace(/[^a-z0-9_-]/g, '-'),
-    domain: raw.domain.trim().toLowerCase(),
+    app,
+    domain,
     host: raw.host.trim(),
     user: raw.user || 'root',
-    port: raw.port || 22,
+    port: sanitizeInteger(raw.port || 22, 22),
     sshKey: raw.sshKey ? expandTilde(raw.sshKey) : expandTilde(defaultKeyPath),
     password: raw.password,
-    appPort: raw.appPort || 3000,
+    appPort: sanitizeInteger(raw.appPort || 3000, 3000),
     healthcheck,
     envFile: raw.envFile,
     ssl: raw.ssl ?? true,

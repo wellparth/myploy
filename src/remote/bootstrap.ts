@@ -97,5 +97,13 @@ export async function bootstrapServer(ssh: SSHClient): Promise<void> {
   // Start proxy containers
   await ssh.execOrThrow('docker compose -f /var/lib/myploy/docker-compose.proxy.yml up -d');
 
+  // 7. Setup automated Nginx reload cron for renewed certificates
+  spinner.text = 'Configuring automated SSL renewal trigger...';
+  await ssh.writeFile(
+    '/etc/cron.d/myploy-certbot',
+    '0 3,15 * * * root docker exec myploy-nginx nginx -s reload >/dev/null 2>&1\n'
+  );
+  await ssh.exec('chmod 644 /etc/cron.d/myploy-certbot');
+
   spinner.succeed('VPS bootstrapped successfully! Edge proxy & Docker ready for deployments.');
 }

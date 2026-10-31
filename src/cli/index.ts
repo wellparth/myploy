@@ -8,14 +8,17 @@ import { rollbackCommand } from './commands/rollback.js';
 import { statusCommand } from './commands/status.js';
 import { logsCommand } from './commands/logs.js';
 import { doctorCommand } from './commands/doctor.js';
+import { dbCreateCommand, dbListCommand, dbBackupCommand } from './commands/db.js';
+import { gitDeployCommand } from './commands/gitDeploy.js';
+import { uiCommand } from './commands/ui.js';
 import { logger } from '../utils/logger.js';
 
 const program = new Command();
 
 program
   .name('myploy')
-  .description('Lightweight zero-downtime deploy tool for Docker Compose apps on small VPS instances')
-  .version('0.1.0');
+  .description('Dokploy-grade lightweight zero-downtime deploy tool for VPS Docker Compose apps & databases')
+  .version('0.2.0');
 
 program
   .command('init')
@@ -62,6 +65,74 @@ program
   .action(async () => {
     try {
       await rollbackCommand();
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('git <repoUrl>')
+  .description('Deploy an application directly from a remote Git repository (Dokploy-style)')
+  .option('-b, --branch <branch>', 'Git branch to deploy (default: main)', 'main')
+  .option('-a, --app <name>', 'Application name')
+  .option('-d, --domain <domain>', 'Domain name for routing & SSL')
+  .option('-p, --port <port>', 'Internal container port (default: 3000)', '3000')
+  .action(async (repoUrl, options) => {
+    try {
+      await gitDeployCommand(repoUrl, options);
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+// Database subcommands
+const dbCommand = program.command('db').description('Manage 1-click databases and automated backups');
+
+dbCommand
+  .command('create <type> <name>')
+  .description('Provision a new database (postgres, mysql, redis, mongo, mariadb)')
+  .action(async (type, name) => {
+    try {
+      await dbCreateCommand(type, name);
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+dbCommand
+  .command('list')
+  .description('List all active managed databases, status, and internal connection strings')
+  .action(async () => {
+    try {
+      await dbListCommand();
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+dbCommand
+  .command('backup <name>')
+  .description('Create an instant snapshot backup of a managed database')
+  .action(async (name) => {
+    try {
+      await dbBackupCommand(name);
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('ui')
+  .description('Launch the embedded web dashboard and VPS control plane (Dokploy-grade)')
+  .option('-p, --port <port>', 'Local port to run UI server on', '4000')
+  .action(async (options) => {
+    try {
+      await uiCommand(options);
     } catch (err: any) {
       logger.error(err.message);
       process.exit(1);

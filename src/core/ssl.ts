@@ -2,9 +2,11 @@ import { SSHClient } from '../remote/ssh.js';
 import { renderHttpAppConfig, renderHttpsAppConfig } from '../templates/nginx.js';
 import { Slot, SSLConfig } from '../types/config.js';
 import { logger } from '../utils/logger.js';
+import { escapeShellArg, sanitizeDomain, sanitizeAppName } from '../utils/security.js';
 
 export async function hasExistingCertificate(ssh: SSHClient, domain: string): Promise<boolean> {
-  const certPath = `/var/lib/myploy/certbot/conf/live/${domain}/fullchain.pem`;
+  const safeDomain = sanitizeDomain(domain);
+  const certPath = `/var/lib/myploy/certbot/conf/live/${safeDomain}/fullchain.pem`;
   return await ssh.fileExists(certPath);
 }
 
@@ -16,11 +18,13 @@ export async function applyNginxRouting(
   appPort: number,
   useHttps: boolean
 ): Promise<void> {
-  const confPath = `/var/lib/myploy/nginx/conf.d/${appName}.conf`;
+  const safeApp = sanitizeAppName(appName);
+  const safeDomain = sanitizeDomain(domain);
+  const confPath = `/var/lib/myploy/nginx/conf.d/${safeApp}.conf`;
 
   const confContent = useHttps
-    ? renderHttpsAppConfig({ appName, domain, slot, appPort })
-    : renderHttpAppConfig({ appName, domain, slot, appPort });
+    ? renderHttpsAppConfig({ appName: safeApp, domain: safeDomain, slot, appPort })
+    : renderHttpAppConfig({ appName: safeApp, domain: safeDomain, slot, appPort });
 
   await ssh.writeFile(confPath, confContent);
 
@@ -41,27 +45,29 @@ export async function provisionSslCertificate(
   appPort: number,
   sslConfig: Partial<SSLConfig> = {}
 ): Promise<boolean> {
-  const spinner = logger.step(`Checking SSL certificate for ${domain}...`);
+  const safeApp = sanitizeAppName(appName);
+  const safeDomain = sanitizeDomain(domain);
+  const spinner = logger.step(`Checking SSL certificate for ${safeDomain}...`);
 
-  const exists = await hasExistingCertificate(ssh, domain);
+  const exists = await hasExistingCertificate(ssh, safeDomain);
   if (exists) {
-    spinner.succeed(`Valid SSL certificate found for ${domain}`);
-    await applyNginxRouting(ssh, appName, domain, slot, appPort, true);
+    spinner.succeed(`Valid SSL certificate found for ${safeDomain}`);
+    await applyNginxRouting(ssh, safeApp, safeDomain, slot, appPort, true);
     return true;
   }
 
   // 1. Apply HTTP-only config first so Let's Encrypt can reach /.well-known/acme-challenge/
   spinner.text = 'Applying HTTP challenge proxy configuration...';
-  await applyNginxRouting(ssh, appName, domain, slot, appPort, false);
+  await applyNginxRouting(ssh, safeApp, safeDomain, slot, appPort, false);
 
   // 2. Execute Certbot ACME webroot challenge
-  spinner.text = `Requesting Let's Encrypt SSL certificate for ${domain}...`;
+  spinner.text = `Requesting Let's Encrypt SSL certificate for ${safeDomain}...`;
   const emailFlag = sslConfig.email
-    ? `-m ${sslConfig.email} --no-eff-email`
+    ? `-m ${escapeShellArg(sslConfig.email)} --no-eff-email`
     : '--register-unsafely-without-email';
   const stagingFlag = sslConfig.staging ? '--staging' : '';
 
-  const certbotCmd = `docker exec myploy-certbot certbot certonly --webroot -w /var/www/certbot -d ${domain} --non-interactive --agree-tos ${emailFlag} ${stagingFlag}`;
+  const certbotCmd = `docker exec myploy-certbot certbot certonly --webroot -w /var/www/certbot -d ${escapeShellArg(safeDomain)} --non-interactive --agree-tos ${emailFlag} ${stagingFlag}`;
 
   const res = await ssh.exec(certbotCmd);
 
@@ -72,8 +78,8 @@ export async function provisionSslCertificate(
 
   // 3. Switch to HTTPS configuration and reload
   spinner.text = 'Activating HTTPS & auto-redirects...';
-  await applyNginxRouting(ssh, appName, domain, slot, appPort, true);
+  await applyNginxRouting(ssh, safeApp, safeDomain, slot, appPort, true);
 
-  spinner.succeed(`SSL certificate activated for https://${domain}!`);
+  spinner.succeed(`SSL certificate activated for https://${safeDomain}!`);
   return true;
 }
