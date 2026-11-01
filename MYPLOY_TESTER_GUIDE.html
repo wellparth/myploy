@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyPloy Alpha Tester Guide & Architecture Playbook</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #eef2ff;
+      --primary-dark: #3730a3;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --dark: #0f172a;
+      --gray-900: #111827;
+      --gray-800: #1f2937;
+      --gray-700: #374151;
+      --gray-600: #4b5563;
+      --gray-200: #e5e7eb;
+      --gray-100: #f3f4f6;
+      --gray-50: #f9fafb;
+      --border: #e2e8f0;
+      --radius: 12px;
+    }
+
+    @page {
+      size: A4;
+      margin: 14mm 12mm 14mm 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--gray-800);
+      background-color: #ffffff;
+      line-height: 1.55;
+      font-size: 13.5px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 10px 20px;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+      color: white;
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .badge-alpha {
+      background: linear-gradient(90deg, #ec4899, #f43f5e);
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .header-title {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: #cbd5e1;
+      max-width: 680px;
+      line-height: 1.45;
+    }
+
+    .meta-bar {
+      display: flex;
+      gap: 18px;
+      margin-top: 16px;
+      font-size: 11.5px;
+      color: #94a3b8;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding-top: 12px;
+    }
+
+    .meta-bar strong {
+      color: #f1f5f9;
+    }
+
+    /* Section Styles */
+    .section {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid var(--gray-100);
+      padding-bottom: 8px;
+    }
+
+    .section-title .step-badge {
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 12.5px;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: var(--gray-50);
+      font-weight: 700;
+      color: var(--gray-700);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Architecture Visual Diagram */
+    .diagram-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px 20px;
+      border-radius: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.45;
+      margin: 14px 0;
+      overflow-x: auto;
+      border: 1px solid #1e293b;
+    }
+
+    /* Code Blocks */
+    pre {
+      background: #090d16;
+      color: #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: 10px 0;
+      border-left: 3px solid var(--primary);
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+      font-weight: normal;
+    }
+
+    /* Cards Grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .card {
+      background: var(--gray-50);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-desc {
+      font-size: 11.5px;
+      color: var(--gray-600);
+      line-height: 1.4;
+    }
+
+    /* Callout Boxes */
+    .callout {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .callout-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    .callout-success {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+    }
+
+    .callout-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+
+    .callout-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    /* Page Break Rules for Print */
+    @media print {
+      body {
+        font-size: 12px;
+      }
+      .container {
+        padding: 0;
+        max-width: 100%;
+      }
+      .header {
+        padding: 18px 24px;
+        margin-bottom: 16px;
+      }
+      .section {
+        padding: 14px 18px;
+        margin-bottom: 14px;
+        border: 1px solid #cbd5e1;
+      }
+      .page-break {
+        page-break-before: always;
+        break-before: page;
+      }
+      pre {
+        padding: 10px 14px;
+        font-size: 11px;
+      }
+      .diagram-box {
+        padding: 12px 14px;
+        font-size: 10.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <span class="badge-alpha">🧪 Public Alpha v0.2.0-alpha.1</span>
+      <span style="font-size: 12px; color: #a5b4fc; font-weight: 600;">GitHub: wellparth/myploy</span>
+    </div>
+    <h1 class="header-title">🚀 MyPloy — Tester & Architecture Playbook</h1>
+    <p class="header-subtitle">
+      A step-by-step technical guide explaining how MyPloy works under the hood, how to test each feature on your VPS, and why it provides a lightweight Dokploy alternative with a zero-daemon architecture.
+    </p>
+    <div class="meta-bar">
+      <span>Target OS: <strong>Ubuntu 20.04/22.04/24.04 / Debian 11/12</strong></span>
+      <span>Engine: <strong>Docker Compose v2</strong></span>
+      <span>Footprint: <strong>&lt; 35MB RAM (Zero Daemon)</strong></span>
+      <span>Security: <strong>Origin Cloaking & Scrypt Auth</strong></span>
+    </div>
+  </div>
+
+  <!-- 1. What is MyPloy & How It Works -->
+  <div class="section">
+    <h2 class="section-title">💡 1. What is MyPloy & Why Does It Exist?</h2>
+    <p>
+      If you run containerized web applications on small VPS instances ($4–$10/mo from Hetzner, DigitalOcean, or Linode), existing solutions create an uncomfortable dilemma:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Deployment Model</th>
+          <th>Host RAM Overhead</th>
+          <th>Configuration Style</th>
+          <th>Cutover Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Dokploy / Coolify</strong></td>
+          <td>⚠️ 1,000MB – 2,000MB (Heavy background daemon & DB)</td>
+          <td>Proprietary Web UI / Custom Schemas</td>
+          <td>Varies / Container swaps</td>
+        </tr>
+        <tr>
+          <td><strong>Kamal (37signals)</strong></td>
+          <td>✅ None (&lt;20MB proxy)</td>
+          <td>Requires custom <code>deploy.yml</code> & Docker Hub/GHCR</td>
+          <td>Traefik container swap</td>
+        </tr>
+        <tr>
+          <td><strong>Manual Bash Scripts</strong></td>
+          <td>✅ None</td>
+          <td>Manual Nginx files, certbot cron, prone to typos</td>
+          <td>⚠️ Dropped packets during restarts</td>
+        </tr>
+        <tr style="background-color: #f5f3ff; font-weight: 600;">
+          <td><strong>MyPloy (This Tool)</strong></td>
+          <td><strong>✅ &lt;35MB RAM (Shared Nginx proxy only)</strong></td>
+          <td><strong>Standard <code>docker-compose.yml</code> (Zero learning curve)</strong></td>
+          <td><strong>Atomic Zero-Downtime Blue/Green Switch</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <strong>The "Zero-Daemon" Advantage:</strong> MyPloy does not run a continuous heavy Node.js or Postgres daemon on your server. It connects securely over SSH, verifies the state, manages Docker containers via native CLI/Engine API, and exits immediately. When you want a UI, <code>myploy ui</code> serves an embedded dashboard locally or over a secured port on demand!
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Architecture Diagram -->
+  <div class="section">
+    <h2 class="section-title">🏗️ 2. Architectural Blueprint & Traffic Flow</h2>
+    <p>Here is the lifecycle of how traffic traverses the MyPloy environment on your VPS:</p>
+    
+    <div class="diagram-box">
+[Internet / Cloudflare CDN] 
+             │ HTTPS (Ports 80 / 443)
+             ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ VPS Host: Ingress & Reverse Proxy                                     │
+│  - myploy-nginx (Isolated container, ports 80/443)                    │
+│  - Origin Cloaking: Raw IP access returns HTTP 444 (Drop connection) │
+│  - Cloudflare Real-IP: Restores CF-Connecting-IP automatically         │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Internal proxy_pass (myploy-net)
+             ┌──────────────────────┴──────────────────────┐
+             ▼                                             ▼
+┌─────────────────────────────┐               ┌─────────────────────────────┐
+│ ACTIVE SLOT: "blue"         │               │ CANDIDATE SLOT: "green"     │
+│ - Live container: myapp_blue│               │ - Candidate container       │
+│ - Receiving 100% of traffic │               │ - Healthcheck polled        │
+│ - Unaltered during build    │               │ - Discarded on failure      │
+└─────────────────────────────┘               └─────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Isolated Database Network (myploy-net)                                 │
+│  - db_postgres (Internal: postgresql://...:5432)                       │
+│  - db_redis    (Internal: redis://...:6379)                            │
+│  - No database ports exposed to the public internet                    │
+└────────────────────────────────────────────────────────────────────────┘
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">🛡️ Origin Cloaking</div>
+        <div class="card-desc">Port scanners hitting your raw VPS IP get an immediate HTTP 444 response. Only requests with your authorized domain are routed to your app.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔄 Blue/Green Slots</div>
+        <div class="card-desc">Host port bindings are automatically stripped from candidate compose files to prevent <code>port already in use</code> errors.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 3. Hands-On Step-by-Step Guide -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">1</span> Step 1: Installing MyPloy (Alpha Testing)</h2>
+    <p>Alpha testers can install MyPloy globally directly from GitHub or build from source:</p>
+
+    <pre><code># Option A: Direct Global Install from GitHub
+npm install -g https://github.com/wellparth/myploy.git
+
+# Option B: Clone & Link for local development
+git clone https://github.com/wellparth/myploy.git
+cd myploy
+npm install && npm run build && npm link
+
+# Verify installation:
+myploy --version
+# Expected Output: 0.2.0-alpha.1</code></pre>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">2</span> Step 2: Automated SSH Key Pairing (Zero Errors)</h2>
+    <p>
+      SSH permission errors and key generation issues are the #1 point of failure in VPS tools. MyPloy completely automates this with high-security Ed25519 cryptography:
+    </p>
+
+    <pre><code># Auto-generate a dedicated Ed25519 key and authorize it on your VPS in 1 command:
+myploy ssh init --host 198.51.100.25 --user root
+
+# Print your public key (ready to paste into Hetzner / DigitalOcean console):
+myploy ssh public-key</code></pre>
+
+    <div class="callout callout-success">
+      <span class="callout-icon">✨</span>
+      <div>
+        <strong>Self-Healing Auth:</strong> If you haven't authorized your key yet, <code>myploy setup</code> will automatically prompt for your VPS root password once, install the public key with strict <code>chmod 700 ~/.ssh</code> and <code>chmod 600 authorized_keys</code> permissions, and then switch to 100% passwordless SSH!
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">3</span> Step 3: Bootstrapping the Server (One-Time)</h2>
+    <p>Turn any fresh VPS into an orchestrated deployment host:</p>
+    <pre><code>myploy setup --host 198.51.100.25 --user root</code></pre>
+
+    <p style="margin-top: 8px;"><strong>What happens during setup?</strong></p>
+    <ol style="padding-left: 20px; font-size: 12.5px; margin-top: 6px; line-height: 1.6;">
+      <li>Checks for Docker Engine and Docker Compose v2 (installs them via official Docker APT repos if missing).</li>
+      <li>Configures UFW firewall, strictly opening only ports <code>22</code> (SSH), <code>80</code> (HTTP), and <code>443</code> (HTTPS).</li>
+      <li>Creates the isolated Docker bridge network: <code>myploy-net</code>.</li>
+      <li>Deploys the lightweight shared <code>myploy-nginx</code> and <code>myploy-certbot</code> containers.</li>
+    </ol>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">4</span> Step 4: Dokploy-Style Web Control Plane</h2>
+    <p>Manage your entire VPS visually without leaving heavy daemons running:</p>
+    <pre><code># Launch dashboard on your workstation or VPS:
+myploy ui --port 4000</code></pre>
+
+    <p style="margin-top: 8px;">Open <code>http://localhost:4000</code> (or <code>http://&lt;vps-ip&gt;:4000</code>):</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">🔐 Master Scrypt Auth</div>
+        <div class="card-desc">First launch prompts you to create a master password. Stored with Scrypt (64-byte derivation, unique salt) and timing-safe comparison.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Container Auto-Discovery</div>
+        <div class="card-desc">Automatically discovers all Docker containers running on your VPS—including manual standalone services—with start, stop, restart, and log viewing.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Live Telemetry</div>
+        <div class="card-desc">Real-time CPU%, Memory usage, PID count, and server uptime gauges streamed via bounded JSON endpoints.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚡ 1-Click Rollback</div>
+        <div class="card-desc">Visual button to instantly switch active traffic to the standby Blue/Green slot in &lt;1 second.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Step 5 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">5</span> Step 5: Zero-Downtime Blue/Green Deployments</h2>
+    <p>Deploy your application repository containing a <code>docker-compose.yml</code>:</p>
+
+    <pre><code># 1. Generate myploy.json in your app directory:
+myploy init
+
+# 2. Deploy your app with atomic cutover:
+myploy deploy</code></pre>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">🔍</span>
+      <div>
+        <strong>The Verification Protocol:</strong> MyPloy builds the candidate container alongside the live container. It polls <code>http://localhost:&lt;port&gt;/health</code>. If the app throws errors or fails to boot within the timeout, the candidate is destroyed and error logs are displayed. <strong>Active production users experience zero interruption.</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">6</span> Step 6: Instant 1-Second Rollbacks</h2>
+    <p>If you deploy a bug, rollback immediately from either the CLI or Web UI:</p>
+    <pre><code>myploy rollback</code></pre>
+    <p style="font-size: 12.5px; color: var(--gray-600); margin-top: 4px;">
+      Because MyPloy keeps the previous slot alive in warm standby, rollback does not rebuild or restart containers—it executes an atomic Nginx upstream reload in ~0.2 seconds.
+    </p>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">7</span> Step 7: 1-Click Managed Databases & Backups</h2>
+    <p>Create databases on the internal <code>myploy-net</code> network without exposing ports to attackers:</p>
+
+    <pre><code># Provision PostgreSQL 16:
+myploy db create postgres mydb
+
+# Provision Redis 7, MySQL 8, or MongoDB 7:
+myploy db create redis mycache
+myploy db create mysql mystore
+myploy db create mongo mydocs
+
+# List all databases and internal connection strings:
+myploy db list
+
+# Create an immediate compressed gzip snapshot:
+myploy db backup mydb</code></pre>
+
+    <div class="callout callout-success">
+      <span class="callout-icon">🛡️</span>
+      <div>
+        <strong>CWE-214 Hardening:</strong> Passwords are never passed via <code>-e PASSWORD</code> on the command line. They are written to <code>chmod 600</code> environment files, preventing credential sniffing via <code>ps aux</code> on the VPS.
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 8 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">8</span> Step 8: Remote Git Deployments</h2>
+    <p>Deploy directly from a public or private GitHub repository without keeping files locally:</p>
+    <pre><code>myploy git https://github.com/myorg/myapp.git --branch main --domain api.example.com</code></pre>
+  </div>
+
+  <!-- Step 9 -->
+  <div class="section">
+    <h2 class="section-title"><span class="step-badge">9</span> Step 9: Alpha Testing Checklist & Bug Reporting</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Test Scenario</th>
+          <th>Command to Run</th>
+          <th>What to Verify</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. SSH Keygen</strong></td>
+          <td><code>myploy ssh init --host &lt;ip&gt;</code></td>
+          <td>Ed25519 key created, passwordless login works</td>
+        </tr>
+        <tr>
+          <td><strong>2. VPS Setup</strong></td>
+          <td><code>myploy setup</code></td>
+          <td>Docker, UFW, and Nginx containers running</td>
+        </tr>
+        <tr>
+          <td><strong>3. Web UI</strong></td>
+          <td><code>myploy ui --port 4000</code></td>
+          <td>Discovers all running VPS containers, Scrypt password works</td>
+        </tr>
+        <tr>
+          <td><strong>4. App Deploy</strong></td>
+          <td><code>myploy deploy</code></td>
+          <td>App accessible via domain, Blue/Green swap succeeds</td>
+        </tr>
+        <tr>
+          <td><strong>5. Rollback</strong></td>
+          <td><code>myploy rollback</code></td>
+          <td>Traffic reverts to previous slot in &lt;1 second</td>
+        </tr>
+        <tr>
+          <td><strong>6. Database</strong></td>
+          <td><code>myploy db create postgres mydb</code></td>
+          <td>DB starts, backup produces <code>.sql.gz</code> file</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warning">
+      <span class="callout-icon">🐛</span>
+      <div>
+        <strong>Found an edge case or bug?</strong><br>
+        Please open an issue on GitHub: <a href="https://github.com/wellparth/myploy/issues" target="_blank" style="color: inherit; font-weight: bold;">github.com/wellparth/myploy/issues</a> using the <strong>Alpha Bug Report</strong> template. Include your VPS OS, Node.js version, and terminal logs.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
