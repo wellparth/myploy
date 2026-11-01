@@ -55,21 +55,41 @@ export class AuthManager {
   verifyPassword(password: string, ip = 'unknown'): boolean {
     // Brute-force protection: rate-limit failed attempts
     const now = Date.now();
+
+    // Prune stale failed attempts if map grows large to prevent memory exhaustion DoS
+    if (this.failedAttempts.size > 500) {
+      for (const [key, val] of this.failedAttempts.entries()) {
+        if (now - val.lastAttempt > 600000) {
+          this.failedAttempts.delete(key);
+        }
+      }
+      if (this.failedAttempts.size > 1000) {
+        this.failedAttempts.clear();
+      }
+    }
+
     const attempts = this.failedAttempts.get(ip);
     if (attempts && attempts.count >= 5 && now - attempts.lastAttempt < 300000) {
       throw new Error('Too many failed login attempts. Please wait 5 minutes before trying again.');
     }
 
     const state = this.getAuthState();
-    if (!state.isConfigured || !state.passwordHash || !state.salt) {
+    if (!state.isConfigured || !state.passwordHash || !state.salt || !password) {
       return false;
     }
 
     const hash = crypto.scryptSync(password, state.salt, 64).toString('hex');
-    const valid = crypto.timingSafeEqual(
-      Buffer.from(hash, 'utf-8'),
-      Buffer.from(state.passwordHash, 'utf-8')
-    );
+    const hashBuf = Buffer.from(hash, 'utf-8');
+    const targetBuf = Buffer.from(state.passwordHash, 'utf-8');
+
+    // crypto.timingSafeEqual throws RangeError if buffer lengths differ
+    if (hashBuf.length !== targetBuf.length) {
+      const current = this.failedAttempts.get(ip) || { count: 0, lastAttempt: now };
+      this.failedAttempts.set(ip, { count: current.count + 1, lastAttempt: now });
+      return false;
+    }
+
+    const valid = crypto.timingSafeEqual(hashBuf, targetBuf);
 
     if (!valid) {
       const current = this.failedAttempts.get(ip) || { count: 0, lastAttempt: now };
@@ -83,6 +103,22 @@ export class AuthManager {
   }
 
   createSession(): string {
+    // Prune expired sessions if session map grows
+    if (this.activeSessions.size > 500) {
+      const now = Date.now();
+      for (const [tok, session] of this.activeSessions.entries()) {
+        if (now - session.createdAt > 7 * 24 * 60 * 60 * 1000) {
+          this.activeSessions.delete(tok);
+        }
+      }
+      if (this.activeSessions.size > 1000) {
+        const keys = Array.from(this.activeSessions.keys());
+        for (let i = 0; i < keys.length - 500; i++) {
+          this.activeSessions.delete(keys[i]);
+        }
+      }
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     this.activeSessions.set(token, { createdAt: Date.now() });
     return token;

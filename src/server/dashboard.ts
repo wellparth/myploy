@@ -15,6 +15,15 @@ import {
 import { logger } from '../utils/logger.js';
 import { escapeShellArg } from '../utils/security.js';
 
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.0'): http.Server {
   const ssh = new SSHClient(config);
   const dbManager = new DatabaseManager(ssh);
@@ -23,25 +32,47 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
   const server = http.createServer(async (req, res) => {
     const clientIp = req.socket.remoteAddress || 'unknown';
 
-    // Parse cookies
+    // Set defensive HTTP security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // Parse cookies safely (prevent URIError crash on malformed input)
+    const cookies: Record<string, string> = {};
     const cookieHeader = req.headers.cookie || '';
-    const cookies = Object.fromEntries(
-      cookieHeader.split(';').map((c) => {
-        const [k, ...v] = c.trim().split('=');
-        return [k, decodeURIComponent(v.join('='))];
-      })
-    );
+    if (cookieHeader) {
+      for (const item of cookieHeader.split(';')) {
+        const [k, ...v] = item.trim().split('=');
+        if (k) {
+          try {
+            cookies[k] = decodeURIComponent(v.join('='));
+          } catch {
+            cookies[k] = v.join('=');
+          }
+        }
+      }
+    }
 
     const authHeader = req.headers.authorization || '';
     const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     const sessionToken = cookies['myploy_session'] || bearerToken;
     const isAuthenticated = authManager.validateSession(sessionToken);
 
-    // Read JSON Body helper
+    // Read JSON Body helper with bounded buffer (64KB max) to prevent memory exhaustion DoS
+    const MAX_BODY_BYTES = 64 * 1024;
     const readBody = (): Promise<any> =>
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
         let body = '';
-        req.on('data', (chunk) => (body += chunk));
+        let receivedBytes = 0;
+        req.on('data', (chunk) => {
+          receivedBytes += chunk.length;
+          if (receivedBytes > MAX_BODY_BYTES) {
+            req.destroy(new Error('Payload Too Large'));
+            reject(new Error('Payload Too Large'));
+            return;
+          }
+          body += chunk;
+        });
         req.on('end', () => {
           try {
             resolve(JSON.parse(body || '{}'));
@@ -49,6 +80,7 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
             resolve({});
           }
         });
+        req.on('error', reject);
       });
 
     // --- AUTH ROUTES ---
@@ -403,7 +435,7 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
     <div class="text-center space-y-2">
       <div class="h-14 w-14 bg-indigo-600 rounded-2xl flex items-center justify-center font-black text-white text-2xl mx-auto shadow-lg shadow-indigo-500/30">🚀</div>
       <h1 class="text-2xl font-black text-white tracking-tight">MyPloy Control Plane</h1>
-      <p class="text-xs text-gray-400 font-mono">Target: ${config.user}@${config.host}</p>
+      <p class="text-xs text-gray-400 font-mono">Target: ${escapeHtml(config.user)}@${escapeHtml(config.host)}</p>
     </div>
     <form onsubmit="handleLogin(event)" class="space-y-4">
       <div>
@@ -490,7 +522,7 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
 
     <div class="p-4 border-t border-gray-800/80 bg-gray-900/40 space-y-2">
       <div class="flex justify-between items-center">
-        <span class="text-[11px] font-mono text-indigo-400 font-semibold">${config.user}@${config.host}</span>
+        <span class="text-[11px] font-mono text-indigo-400 font-semibold">${escapeHtml(config.user)}@${escapeHtml(config.host)}</span>
         <button onclick="logout()" class="text-[11px] text-gray-400 hover:text-red-400 transition-colors">Logout</button>
       </div>
       <div class="flex items-center gap-1.5 text-[11px] text-emerald-400">
@@ -510,7 +542,7 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
         <button onclick="loadServices()" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all flex items-center gap-1.5">
           <span>🔄</span> Refresh Services
         </button>
-        <a href="https://${config.domain}" target="_blank" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-sm shadow-indigo-500/20">
+        <a href="https://${escapeHtml(config.domain)}" target="_blank" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-sm shadow-indigo-500/20">
           <span>🌐</span> Visit Domain
         </a>
       </div>
@@ -875,7 +907,7 @@ export function startDashboard(config: MyPloyConfig, port = 4000, host = '0.0.0.
 
     async function loadLogs() {
       try {
-        const res = await fetch('/api/containers/logs?id=' + encodeURIComponent('${config.app}_blue'));
+        const res = await fetch('/api/containers/logs?id=' + encodeURIComponent('${encodeURIComponent(config.app)}_blue'));
         const data = await res.json();
         document.getElementById('log-console').innerText = data.logs || 'No recent logs.';
       } catch (e) {

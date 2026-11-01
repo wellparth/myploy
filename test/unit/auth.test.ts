@@ -37,6 +37,39 @@ describe('AuthManager & Security', () => {
     expect(auth.validateSession(token)).toBe(false);
   });
 
+  it('handles empty password and enforces brute-force rate limiting', () => {
+    const auth = new AuthManager(tempDir);
+    auth.setupAdminPassword('SuperSecret123!');
+
+    expect(auth.verifyPassword('', '127.0.0.1')).toBe(false);
+
+    // Fail 5 times from same IP
+    for (let i = 0; i < 5; i++) {
+      expect(auth.verifyPassword('WrongAttempt', '192.168.1.100')).toBe(false);
+    }
+
+    // 6th attempt from the same IP must trigger rate limit
+    expect(() => auth.verifyPassword('WrongAttempt', '192.168.1.100')).toThrow(
+      'Too many failed login attempts'
+    );
+
+    // Different IP is not blocked
+    expect(auth.verifyPassword('SuperSecret123!', '192.168.1.101')).toBe(true);
+  });
+
+  it('safely handles hash buffer length mismatch without throwing RangeError', () => {
+    const auth = new AuthManager(tempDir);
+    const authFile = path.join(tempDir, 'auth.json');
+    // Overwrite auth.json with an invalid hash length (e.g. truncated)
+    fs.writeFileSync(
+      authFile,
+      JSON.stringify({ passwordHash: 'short_corrupted_hash', salt: 'abcdef1234567890' })
+    );
+
+    // Must return false cleanly rather than throwing RangeError from timingSafeEqual
+    expect(auth.verifyPassword('AnyPasswordHere')).toBe(false);
+  });
+
   it('cleans up temp directory', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });

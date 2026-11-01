@@ -12,10 +12,13 @@ export interface DiscoveredContainer {
   isMyPloy: boolean;
 }
 
-function sanitizeContainerIdentifier(id: string): string {
+export function sanitizeContainerIdentifier(id: string): string {
   const sanitized = id.trim();
+  if (sanitized.startsWith('-')) {
+    throw new Error('Security validation failed: Container identifier cannot start with a dash.');
+  }
   if (!/^[a-zA-Z0-9_.-]+$/.test(sanitized)) {
-    throw new Error('Invalid container identifier');
+    throw new Error('Security validation failed: Invalid container identifier.');
   }
   return sanitized;
 }

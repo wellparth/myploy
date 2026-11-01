@@ -154,6 +154,9 @@ export class DatabaseManager {
           ${escapeShellArg(img)}`;
         break;
       }
+      default: {
+        throw new Error(`Unsupported database type: ${(opts as any).type}`);
+      }
     }
 
     // Stop existing container if present
@@ -235,6 +238,9 @@ export class DatabaseManager {
         await this.ssh.execOrThrow(`docker exec ${escapeShellArg(db.containerName)} redis-cli -a ${escapeShellArg(db.password || '')} save`);
         await this.ssh.execOrThrow(`docker cp ${escapeShellArg(db.containerName)}:/data/dump.rdb ${escapeShellArg(backupFile)}`);
         break;
+      }
+      default: {
+        throw new Error(`Unsupported database type for backup: ${(db as any).type}`);
       }
     }
 
