@@ -13,3 +13,5 @@ export * from './templates/nginx.js';
 export * from './utils/logger.js';
 export * from './utils/security.js';
 export * from './server/dashboard.js';
+export * from './server/auth.js';
+export * from './server/containers.js';

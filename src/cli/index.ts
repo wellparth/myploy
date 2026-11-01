@@ -158,8 +158,9 @@ sshCommand
 
 program
   .command('ui')
-  .description('Launch the embedded web dashboard and VPS control plane (Dokploy-grade)')
-  .option('-p, --port <port>', 'Local port to run UI server on', '4000')
+  .description('Launch the self-hosted MyPloy Web Control Plane (Dokploy-grade)')
+  .option('-p, --port <port>', 'Port to run UI server on (default: 3333)', '3333')
+  .option('-H, --host <host>', 'Host address to bind to (default: 0.0.0.0)', '0.0.0.0')
   .action(async (options) => {
     try {
       await uiCommand(options);
