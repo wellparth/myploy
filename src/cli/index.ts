@@ -11,6 +11,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { dbCreateCommand, dbListCommand, dbBackupCommand } from './commands/db.js';
 import { gitDeployCommand } from './commands/gitDeploy.js';
 import { uiCommand } from './commands/ui.js';
+import { sshInitCommand, sshPublicKeyCommand } from './commands/ssh.js';
 import { logger } from '../utils/logger.js';
 
 const program = new Command();
@@ -120,6 +121,35 @@ dbCommand
   .action(async (name) => {
     try {
       await dbBackupCommand(name);
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+// SSH Automation subcommands
+const sshCommand = program.command('ssh').description('Automate SSH key generation and VPS authorization');
+
+sshCommand
+  .command('init')
+  .description('Ensure local Ed25519 SSH key exists and optionally authorize it on the VPS')
+  .option('--host <host>', 'VPS host IP')
+  .option('--user <user>', 'SSH user (default: root)')
+  .action(async (options) => {
+    try {
+      await sshInitCommand(options);
+    } catch (err: any) {
+      logger.error(err.message);
+      process.exit(1);
+    }
+  });
+
+sshCommand
+  .command('public-key')
+  .description('Print your public SSH key to easily copy into cloud provider console')
+  .action(async () => {
+    try {
+      await sshPublicKeyCommand();
     } catch (err: any) {
       logger.error(err.message);
       process.exit(1);

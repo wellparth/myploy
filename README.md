@@ -123,14 +123,35 @@ myploy git https://github.com/org/repo.git --branch main --domain api.example.co
 
 ---
 
-## 🖥️ Web Dashboard & Control Plane
+## 🔑 Automated SSH Key Management
+
+Never worry about SSH key generation errors or permissions:
+
+```bash
+# Auto-generate a high-security Ed25519 key and optionally install it on your VPS
+myploy ssh init --host 198.51.100.25
+
+# Print your public key to easily paste into DigitalOcean, Hetzner, or AWS consoles
+myploy ssh public-key
+```
+
+If your SSH key is not yet authorized when you run `myploy setup`, MyPloy automatically offers to install it for you using password authentication once, so all future commands are 100% passwordless and error-free!
+
+---
+
+## 🖥️ Web Dashboard & Control Plane (Dokploy-Style)
 
 Launch the embedded dashboard to view apps, databases, container telemetry, and trigger deploys:
 
 ```bash
 myploy ui --port 4000
 ```
-Open [http://localhost:4000](http://localhost:4000) to inspect real-time CPU/RAM stats, active deployment slots, and 1-click database backups.
+Open [http://127.0.0.1:4000](http://127.0.0.1:4000) to access the **Dokploy-style control plane**:
+- 🚀 **Applications**: Visual cards showing active/standby Blue-Green slots, domains, and 1-click rollback.
+- 🗄️ **Databases**: 1-Click creation modal for PostgreSQL, MySQL, Redis, MongoDB, and snapshot backups.
+- 📊 **Monitoring**: Live VPS memory gauges and real-time Docker container telemetry (CPU%, Memory, PIDs).
+- 📜 **Terminal Logs**: Live container log viewer.
+- 🛡️ **Security**: Origin Cloaking, Cloudflare Real-IP translation, and UFW firewall status.
 
 ---
 
@@ -139,14 +160,16 @@ Open [http://localhost:4000](http://localhost:4000) to inspect real-time CPU/RAM
 | Command | Description |
 | :--- | :--- |
 | `myploy init` | Interactive wizard to generate `myploy.json` |
-| `myploy setup [--host <ip>]` | Bootstrap Docker, Compose, UFW, Nginx & Certbot on fresh VPS |
+| `myploy setup [--host <ip>]` | Bootstrap Docker, Compose, UFW, Nginx & Certbot on fresh VPS (with self-healing SSH setup) |
+| `myploy ssh init [--host <ip>]` | Auto-generate Ed25519 key and authorize it on your VPS |
+| `myploy ssh public-key` | Print public SSH key to clipboard / cloud console |
 | `myploy deploy` | Upload code, start candidate slot, verify health, and switch traffic |
 | `myploy rollback` | Instantly switch traffic back to the previous active slot |
 | `myploy git <repoUrl>` | Deploy directly from remote Git repository with branch selection |
 | `myploy db create <type> <name>` | Provision 1-click database (`postgres`, `mysql`, `redis`, `mongo`) |
 | `myploy db list` | List active databases, internal hostnames, and connection strings |
 | `myploy db backup <name>` | Create automated compressed snapshot backup |
-| `myploy ui [--port <port>]` | Launch web dashboard and visual VPS control plane |
+| `myploy ui [--port <port>]` | Launch Dokploy-style web dashboard and visual VPS control plane |
 | `myploy status` | View active slot, container health, and proxy routing status |
 | `myploy logs [--follow]` | Stream logs from the active production container over SSH |
 | `myploy doctor` | Test SSH credentials and remote server readiness |

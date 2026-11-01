@@ -7,6 +7,7 @@ export * from './core/database.js';
 export * from './core/git.js';
 export * from './remote/ssh.js';
 export * from './remote/sftp.js';
+export * from './remote/keygen.js';
 export * from './remote/bootstrap.js';
 export * from './templates/nginx.js';
 export * from './utils/logger.js';
