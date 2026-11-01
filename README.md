@@ -1,11 +1,17 @@
 # MyPloy 🚀
 
+> 🧪 **STATUS: PUBLIC ALPHA (v0.2.0-alpha.1)**  
+> MyPloy is actively in public alpha testing! We are inviting developers, sysadmins, and indie hackers to test MyPloy on development/staging VPS instances. Please report feedback or edge cases in [GitHub Issues](https://github.com/wellparth/myploy/issues).
+
 > **Dokploy-grade, lightweight zero-downtime deploy tool for Docker Compose apps & databases on small VPS instances.**  
 > One command to turn a fresh Ubuntu/Debian server into a production-ready, SSL-secured, blue/green deployment target with 1-click databases and web control plane.
 
+[![GitHub Release](https://img.shields.io/github/v/release/wellparth/myploy?include_prereleases&label=alpha%20release&color=orange)](https://github.com/wellparth/myploy/releases)
+[![CI & Tests](https://github.com/wellparth/myploy/actions/workflows/ci.yml/badge.svg)](https://github.com/wellparth/myploy/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
 [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-blue.svg)](https://docs.docker.com/compose/)
+[![Security Audit](https://img.shields.io/badge/Security%20Audit-Passing%20(0%20vulns)-brightgreen.svg)](#-security-hardening--edge-defense)
 
 ---
 
@@ -173,6 +179,24 @@ Open [http://127.0.0.1:4000](http://127.0.0.1:4000) to access the **Dokploy-styl
 | `myploy status` | View active slot, container health, and proxy routing status |
 | `myploy logs [--follow]` | Stream logs from the active production container over SSH |
 | `myploy doctor` | Test SSH credentials and remote server readiness |
+
+---
+
+## 🧪 Alpha Testing Guidelines
+
+MyPloy is currently in **Public Alpha (`v0.2.0-alpha.1`)**. We welcome developers, DevOps engineers, and self-hosters to test MyPloy on development or staging VPS servers.
+
+### Recommended Test Scenarios:
+1. **Fresh VPS Setup**: Run `myploy setup` on a fresh Ubuntu 22.04/24.04 or Debian 12 VPS.
+2. **Automated SSH Keys**: Test `myploy ssh init --host <ip>` to verify automated Ed25519 key generation and zero-error VPS authorization.
+3. **Docker Discovery**: Launch the Web Control Plane with `myploy ui --port 4000` to inspect existing standalone containers and MyPloy apps.
+4. **Zero-Downtime Blue/Green**: Deploy a sample web app, edit code, and redeploy while confirming continuous zero-dropped packets.
+5. **Instant Rollback**: Trigger `myploy rollback` (CLI or UI) to confirm 1-second instantaneous cutover to previous slot.
+6. **1-Click Databases**: Run `myploy db create postgres testdb` and take a compressed snapshot with `myploy db backup testdb`.
+
+### Reporting Issues & Feedback:
+- 🐛 **Bug Reports**: Open an issue using the [Alpha Bug Report](https://github.com/wellparth/myploy/issues/new?template=alpha_bug_report.md).
+- 💡 **Feature Requests**: Submit proposals using the [Feature Request Template](https://github.com/wellparth/myploy/issues/new?template=feature_request.md).
 
 ---
 

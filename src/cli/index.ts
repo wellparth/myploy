@@ -19,7 +19,7 @@ const program = new Command();
 program
   .name('myploy')
   .description('Dokploy-grade lightweight zero-downtime deploy tool for VPS Docker Compose apps & databases')
-  .version('0.2.0');
+  .version('0.2.0-alpha.1');
 
 program
   .command('init')

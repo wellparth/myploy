@@ -1,6 +1,6 @@
 {
   "name": "myploy",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "description": "Lightweight, zero-downtime deploy tool for small VPS Docker Compose apps",
   "type": "module",
   "bin": {
