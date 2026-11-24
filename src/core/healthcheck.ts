@@ -2,6 +2,10 @@ import { SSHClient } from '../remote/ssh.js';
 import { Slot, HealthcheckConfig } from '../types/config.js';
 import { logger } from '../utils/logger.js';
 import { escapeShellArg, sanitizePath } from '../utils/security.js';
+import {
+  diagnoseContainerFailure,
+  printDiagnosticReport
+} from './diagnostics.js';
 
 export async function waitForHealthy(
   ssh: SSHClient,
@@ -22,18 +26,33 @@ export async function waitForHealthy(
 
   while (Date.now() - startTime < timeoutMs) {
     // 1. Verify container is still running (not crashed)
-    const statusRes = await ssh.exec(`docker inspect -f '{{.State.Status}}' ${escapeShellArg(containerName)} 2>/dev/null`);
-    const containerStatus = statusRes.stdout.trim();
+    const statusRes = await ssh.exec(
+      `docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' ${escapeShellArg(
+        containerName
+      )} 2>/dev/null`
+    );
+    const [containerStatus, rawExitCode] = statusRes.stdout.trim().split(' ');
 
     if (containerStatus === 'exited' || containerStatus === 'dead') {
       spinner.fail(`Candidate container ${containerName} crashed or exited.`);
-      const logs = await ssh.exec(`docker logs --tail 50 ${escapeShellArg(containerName)}`);
-      logger.error('Container crash logs:\n' + (logs.stderr || logs.stdout));
+      const logs = await ssh.exec(
+        `docker logs --tail 60 ${escapeShellArg(containerName)}`
+      );
+      const combinedLogs = (logs.stderr || '') + '\n' + (logs.stdout || '');
+      logger.error('Container crash logs:\n' + combinedLogs.trim());
+
+      const report = await diagnoseContainerFailure(
+        combinedLogs,
+        rawExitCode || 1
+      );
+      printDiagnosticReport(report);
       return false;
     }
 
     // 2. Perform HTTP probe via wget inside myploy-nginx container
-    const probeCmd = `docker exec myploy-nginx wget -q -O /dev/null -T 4 ${escapeShellArg(url)}`;
+    const probeCmd = `docker exec myploy-nginx wget -q -O /dev/null -T 4 ${escapeShellArg(
+      url
+    )}`;
     const res = await ssh.exec(probeCmd);
 
     if (res.code === 0) {
@@ -47,7 +66,16 @@ export async function waitForHealthy(
   }
 
   spinner.fail(`Health check timed out after ${healthcheck.timeoutSeconds}s.`);
-  const logs = await ssh.exec(`docker logs --tail 50 ${escapeShellArg(containerName)}`);
-  logger.error('Container logs during failed healthcheck:\n' + (logs.stderr || logs.stdout));
+  const logs = await ssh.exec(
+    `docker logs --tail 60 ${escapeShellArg(containerName)}`
+  );
+  const combinedLogs = (logs.stderr || '') + '\n' + (logs.stdout || '');
+  logger.error(
+    'Container logs during failed healthcheck:\n' + combinedLogs.trim()
+  );
+
+  const report = await diagnoseContainerFailure(combinedLogs);
+  printDiagnosticReport(report);
   return false;
 }
+

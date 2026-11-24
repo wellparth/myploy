@@ -36,6 +36,7 @@ If you have a Docker Compose app and a $5 VPS (Hetzner, DigitalOcean, Linode, Li
 | **Instant Rollback** | Painful manual restart | Web UI | `kamal rollback` | **✅ Instant 1-second `myploy rollback`** |
 | **Git Deployment** | Git pull + rebuild | Yes | No | **✅ Direct Git URL deploy (`myploy git`)** |
 | **Web Dashboard** | None | Yes | No | **✅ Embedded Web UI (`myploy ui`)** |
+| **Failure Diagnostics** | Manual SSH log digging | Manual log viewer | Raw stderr | **✅ Automated AI & Heuristic Post-Mortem Triage** |
 
 ---
 
@@ -84,7 +85,7 @@ MyPloy will:
 myploy deploy
 ```
 1. **Candidate Slot Spin-up**: If `blue` is live, it builds and spins up `green` alongside it without host port collisions.
-2. **Health Verification**: Polls `http://localhost:<port>/health` inside the candidate container. If it fails, the candidate is discarded, error logs are streamed to your console, and **active traffic is untouched**.
+2. **Health Verification & Post-Mortem Diagnostics**: Polls `http://localhost:<port>/health` inside the candidate container. If it fails or crashes, MyPloy automatically executes an **automated failure triage engine** (diagnosing database misconfigurations, missing env vars, port conflicts, or OOM kills) and prints actionable fixes before cleanly discarding the failed container. Active traffic remains untouched.
 3. **Atomic Nginx Switch**: If healthy, Nginx upstream configuration is updated and reloaded atomically with zero dropped packets.
 4. **SSL Provisioning**: Automatically acquires or refreshes Let's Encrypt certificates.
 5. **Standby Retention**: The previous slot remains running in standby for instant recovery.
